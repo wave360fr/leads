@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Suivi des prospects — Rapid Pare-Brise Guyancourt (en ligne)</title>
+<style>
+  :root{
+    --rouge:#E2001A; --rouge-fonce:#b00014; --noir:#1a1d21; --gris:#6b7280;
+    --gris-clair:#f4f5f7; --bord:#e5e7eb; --vert:#15803d; --vert-clair:#dcfce7;
+    --ambre:#b45309; --ambre-clair:#fef3c7; --bleu:#1d4ed8; --bleu-clair:#dbeafe;
+    --rouge-clair:#fee2e2; --gris-badge:#e5e7eb;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--gris-clair);color:var(--noir);line-height:1.45}
+  header.top{background:#fff;border-bottom:3px solid var(--rouge);padding:16px 24px;
+    display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;
+    position:sticky;top:0;z-index:20;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  .brand{display:flex;align-items:center;gap:12px}
+  .logo{width:42px;height:42px;border-radius:10px;background:var(--rouge);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px}
+  .brand h1{font-size:18px;font-weight:800;letter-spacing:-.3px}
+  .brand p{font-size:12px;color:var(--gris)}
+  .wrap{max-width:1280px;margin:0 auto;padding:24px}
+
+  .drop{background:#fff;border:2px dashed var(--bord);border-radius:14px;padding:28px;
+    text-align:center;transition:.15s;cursor:pointer;margin-bottom:18px}
+  .drop:hover,.drop.drag{border-color:var(--rouge);background:#fff7f7}
+  .drop h2{font-size:16px;margin-bottom:6px}
+  .drop p{color:var(--gris);font-size:13px;margin-bottom:12px}
+  .btn{display:inline-flex;align-items:center;gap:7px;background:var(--rouge);color:#fff;border:none;
+    padding:10px 18px;border-radius:9px;font-weight:700;font-size:14px;cursor:pointer;transition:.15s;text-decoration:none}
+  .btn:hover{background:var(--rouge-fonce)}
+  .btn.ghost{background:#fff;color:var(--noir);border:1px solid var(--bord)}
+  .btn.ghost:hover{background:var(--gris-clair)}
+  .btn.sm{padding:7px 13px;font-size:13px}
+
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin:6px 0 22px}
+  .stat{background:#fff;border:1px solid var(--bord);border-radius:12px;padding:16px 18px}
+  .stat .n{font-size:26px;font-weight:800;letter-spacing:-.5px}
+  .stat .l{font-size:12.5px;color:var(--gris);margin-top:2px}
+  .stat.accent .n{color:var(--rouge)}
+  .stat.green .n{color:var(--vert)}
+
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+  .search{flex:1;min-width:220px;position:relative}
+  .search input{width:100%;padding:10px 12px 10px 36px;border:1px solid var(--bord);border-radius:9px;font-size:14px}
+  .search svg{position:absolute;left:11px;top:11px;color:var(--gris)}
+  select.filter{padding:10px 12px;border:1px solid var(--bord);border-radius:9px;font-size:14px;background:#fff;cursor:pointer}
+
+  .card{background:#fff;border:1px solid var(--bord);border-radius:14px;overflow:hidden}
+  .tablewrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  thead th{background:var(--gris-clair);text-align:left;padding:11px 12px;font-weight:700;
+    color:#374151;border-bottom:1px solid var(--bord);white-space:nowrap;position:sticky;top:0}
+  tbody td{padding:10px 12px;border-bottom:1px solid #f1f2f4;vertical-align:middle}
+  tbody tr:hover{background:#fafbfc}
+  .nom{font-weight:700}
+  a.tel{color:var(--bleu);text-decoration:none;font-weight:600;white-space:nowrap}
+  a.tel:hover{text-decoration:underline}
+  a.btncall{display:inline-flex;align-items:center;gap:5px;background:var(--vert);color:#fff;
+    padding:6px 11px;border-radius:8px;font-size:12.5px;font-weight:700;text-decoration:none;white-space:nowrap}
+  a.btncall:hover{filter:brightness(.93)}
+  a.btncall.off{background:var(--gris-badge);color:#9ca3af;pointer-events:none}
+  .badge{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11.5px;font-weight:700;white-space:nowrap}
+  .b-gris{background:var(--gris-badge);color:#374151}
+  .b-vert{background:var(--vert-clair);color:var(--vert)}
+  .b-ambre{background:var(--ambre-clair);color:var(--ambre)}
+  .b-bleu{background:var(--bleu-clair);color:var(--bleu)}
+  .b-rouge{background:var(--rouge-clair);color:var(--rouge-fonce)}
+  .chk{width:18px;height:18px;cursor:pointer;accent-color:var(--rouge)}
+  select.res{padding:6px 8px;border:1px solid var(--bord);border-radius:7px;font-size:12.5px;cursor:pointer;font-weight:600;background:#fff}
+  input.note{width:150px;padding:6px 8px;border:1px solid var(--bord);border-radius:7px;font-size:12.5px}
+  .detailbtn{border:none;background:none;cursor:pointer;color:var(--gris);font-size:16px;padding:2px 6px}
+  tr.detail td{background:#fbfbfc;padding:12px 16px}
+  .kv{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px 18px}
+  .kv div{font-size:12.5px}.kv b{color:#374151}
+  .empty{padding:50px;text-align:center;color:var(--gris)}
+  .hidden{display:none!important}
+  footer{max-width:1280px;margin:0 auto;padding:18px 24px 40px;color:var(--gris);font-size:12px;text-align:center}
+  .pill{display:inline-flex;gap:6px;align-items:center;background:#fff;border:1px solid var(--bord);
+    padding:6px 11px;border-radius:999px;font-size:12.5px;color:var(--gris)}
+  .pill .dot{width:8px;height:8px;border-radius:50%;background:#9ca3af}
+  .pill.ok .dot{background:#22c55e} .pill.ko .dot{background:#ef4444}
+  .setup{background:#fff7f7;border:1px solid var(--rouge);border-radius:12px;padding:18px 20px;margin-bottom:18px;font-size:13.5px}
+  .setup code{background:#fee2e2;padding:1px 6px;border-radius:5px;font-family:monospace}
+  @media(max-width:640px){.wrap{padding:14px}input.note{width:110px}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <div class="logo">RPB</div>
+    <div>
+      <h1>Suivi des prospects</h1>
+      <p>Rapid Pare-Brise Guyancourt — leads Meta Ads</p>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+    <span class="pill" id="connInfo"><span class="dot"></span><span id="connTxt">Connexion…</span></span>
+    <button class="btn ghost sm" id="exportBtn">⬇️ Exporter CSV</button>
+    <button class="btn ghost sm" id="newImportBtn">📤 Importer un CSV</button>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- Bannière de config (si Supabase pas configuré) -->
+  <div id="setupBanner" class="setup hidden">
+    ⚙️ <b>Configuration requise.</b> Ouvre ce fichier et renseigne <code>SUPABASE_URL</code> et
+    <code>SUPABASE_ANON_KEY</code> en haut du script (section CONFIG). Tant que ce n'est pas fait,
+    les données ne sont pas synchronisées en ligne.
+  </div>
+
+  <!-- Zone d'import (repliable) -->
+  <div id="dropZone" class="drop">
+    <h2>📥 Importer un export CSV de Meta (1er lot / secours)</h2>
+    <p>Glisse-dépose le fichier, ou clique. Les nouveaux leads arrivent ensuite tout seuls.</p>
+    <button class="btn" id="pickBtn">Choisir un fichier CSV</button>
+    <input type="file" id="fileInput" accept=".csv,text/csv" class="hidden" />
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="toolbar">
+    <div class="search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <input type="text" id="searchInput" placeholder="Rechercher un nom, téléphone, ville…" />
+    </div>
+    <select class="filter" id="filterSelect">
+      <option value="all">Tous les prospects</option>
+      <option value="todo">🆕 À traiter</option>
+      <option value="notcalled">📵 Non appelés</option>
+      <option value="called">📞 Appelés</option>
+      <option value="a_rappeler">🔁 À rappeler</option>
+      <option value="injoignable">🚫 Injoignables</option>
+      <option value="rdv_pris">✅ RDV pris</option>
+      <option value="rdv_honore">🏆 RDV honorés</option>
+      <option value="pas_interesse">❌ Pas intéressés</option>
+    </select>
+  </div>
+
+  <div class="card">
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr>
+            <th></th>
+            <th>Date</th>
+            <th>Nom</th>
+            <th>Téléphone</th>
+            <th>Appel</th>
+            <th>Ville</th>
+            <th>Cadeau</th>
+            <th>Bris de glace</th>
+            <th>Appelé</th>
+            <th>Résultat</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="empty hidden" id="emptyState">Aucun prospect ne correspond à ce filtre.</div>
+  </div>
+</div>
+
+<footer>
+  Données hébergées en ligne (Supabase) — synchronisées en temps réel sur tous les appareils.
+</footer>
+
+<!-- Client Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* ============================================================
+   CONFIG — À RENSEIGNER (une seule fois)
+   1) Crée un projet sur https://supabase.com (gratuit)
+   2) Project Settings → API : copie l'URL et la clé "anon public"
+   3) Colle-les ci-dessous entre les guillemets
+   ============================================================ */
+const SUPABASE_URL = "https://qenzyfttxrnliellmiga.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_JprnIaPSunwDMYfRgQdT9A_k0gcSez1";
+
+/* ---------- État ---------- */
+let leads = [];   // lignes Supabase (lead + statut dans la même ligne)
+let sb = null;
+const configured = !!(SUPABASE_URL && SUPABASE_ANON_KEY);
+
+/* ---------- Parseur CSV robuste (RFC4180, multi-délimiteur) ---------- */
+function detectDelim(text){
+  const line = text.split(/\r?\n/)[0] || '';
+  const c = {',':0,';':0,'\t':0};
+  let q=false;
+  for(const ch of line){ if(ch==='"') q=!q; else if(!q && c[ch]!==undefined) c[ch]++; }
+  return Object.keys(c).sort((a,b)=>c[b]-c[a])[0] || ',';
+}
+function parseCSV(text){
+  if(text.charCodeAt(0)===0xFEFF) text=text.slice(1);
+  const d = detectDelim(text);
+  const rows=[]; let row=[]; let field=''; let q=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(q){
+      if(ch==='"'){ if(text[i+1]==='"'){field+='"';i++;} else q=false; }
+      else field+=ch;
+    }else{
+      if(ch==='"') q=true;
+      else if(ch===d){ row.push(field); field=''; }
+      else if(ch==='\n'){ row.push(field); rows.push(row); row=[]; field=''; }
+      else if(ch==='\r'){ /* ignore */ }
+      else field+=ch;
+    }
+  }
+  if(field.length>0 || row.length>0){ row.push(field); rows.push(row); }
+  return rows.filter(r=>r.length>1 || (r.length===1 && r[0].trim()!==''));
+}
+
+/* ---------- Détection des colonnes ---------- */
+function norm(s){return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');}
+function findCol(headers, keys){
+  for(let i=0;i<headers.length;i++){ const h=norm(headers[i]); if(keys.some(k=>h.includes(k))) return i; }
+  return -1;
+}
+function buildLeads(rows){
+  if(!rows.length) return [];
+  const headers = rows[0];
+  const map = {
+    id:    findCol(headers,['id de lead','lead id','identifiant']),
+    date:  findCol(headers,['created','date','heure','horodat']),
+    name:  findCol(headers,['full_name','nom complet','full name','nom','name']),
+    phone: findCol(headers,['phone','telephone','tel','numero','mobile']),
+    city:  findCol(headers,['city','ville','commune']),
+    email: findCol(headers,['email','e-mail','courriel','mail']),
+    gift:  findCol(headers,['cadeau','gift','choisissez']),
+    insur: findCol(headers,['bris','assur','glace']),
+    camp:  findCol(headers,['campaign','campagne'])
+  };
+  let idIdx = headers.findIndex(h=>norm(h)==='id');
+  if(idIdx>-1) map.id=idIdx;
+
+  const out=[];
+  for(let r=1;r<rows.length;r++){
+    const cells=rows[r]; if(cells.every(c=>!c||!c.trim())) continue;
+    const get=i=> i>-1 ? (cells[i]||'').trim() : '';
+    let id = get(map.id);
+    if(!id) id = 'gen_'+hash(get(map.name)+'|'+get(map.phone)+'|'+get(map.date)+'|'+r);
+    const raw={};
+    headers.forEach((h,i)=>{ if((cells[i]||'').trim()!=='') raw[h]=(cells[i]||'').trim(); });
+    out.push({
+      id, lead_date:get(map.date), name:get(map.name)||'(sans nom)', phone:get(map.phone),
+      city:get(map.city), email:get(map.email), gift:get(map.gift), insur:get(map.insur),
+      camp:get(map.camp), raw
+    });
+  }
+  return out;
+}
+function hash(str){let h=0;for(let i=0;i<str.length;i++){h=(h<<5)-h+str.charCodeAt(i);h|=0;}return Math.abs(h).toString(36);}
+
+/* ---------- Import CSV → Supabase (upsert, n'écrase pas les statuts) ---------- */
+async function importText(text){
+  if(!sb){ alert('Supabase non configuré : renseigne URL + clé en haut du fichier.'); return; }
+  const newLeads = buildLeads(parseCSV(text));
+  if(!newLeads.length){ alert('Aucune ligne détectée. Vérifie que c\'est bien le CSV exporté depuis Meta.'); return; }
+  const payload = newLeads.map(l=>({
+    id:l.id, lead_date:l.lead_date, name:l.name, phone:l.phone, city:l.city,
+    email:l.email, gift:l.gift, insur:l.insur, camp:l.camp, raw:l.raw
+  }));
+  // ignoreDuplicates: insère seulement les nouveaux id (préserve appelé/résultat/notes existants)
+  const {error} = await sb.from('leads').upsert(payload,{onConflict:'id',ignoreDuplicates:true});
+  if(error){ alert('Erreur import : '+error.message); return; }
+  await fetchAll();
+  alert(newLeads.length+' ligne(s) traitée(s). Les nouveaux prospects sont ajoutés (les doublons sont ignorés).');
+}
+function handleFile(file){
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>importText(e.target.result);
+  reader.readAsText(file,'UTF-8');
+}
+
+/* ---------- Statuts ---------- */
+const RES = {
+  '':           {label:'À traiter',     cls:'b-gris'},
+  'a_rappeler': {label:'À rappeler',    cls:'b-ambre'},
+  'injoignable':{label:'Injoignable',   cls:'b-gris'},
+  'rdv_pris':   {label:'RDV pris',      cls:'b-vert'},
+  'rdv_honore': {label:'RDV honoré',    cls:'b-vert'},
+  'pas_interesse':{label:'Pas intéressé',cls:'b-rouge'},
+  'non_eligible':{label:'Non éligible', cls:'b-rouge'}
+};
+
+/* ---------- Lecture / écriture Supabase ---------- */
+async function fetchAll(){
+  if(!sb) return;
+  const {data,error} = await sb.from('leads').select('*').order('lead_date',{ascending:false});
+  if(error){ setConn(false,'Erreur : '+error.message); return; }
+  leads = data || [];
+  render();
+}
+async function setStatus(id, patch){
+  const l = leads.find(x=>x.id===id); if(l) Object.assign(l, patch);
+  renderStats();
+  if(!sb) return;
+  patch.updated_at = new Date().toISOString();
+  const {error} = await sb.from('leads').update(patch).eq('id',id);
+  if(error) alert('Erreur enregistrement : '+error.message);
+}
+
+/* ---------- Rendu ---------- */
+function setConn(ok,txt){
+  const p=document.getElementById('connInfo');
+  p.className='pill '+(ok?'ok':'ko');
+  document.getElementById('connTxt').textContent=txt;
+}
+function render(){ renderStats(); renderTable(); }
+function renderStats(){
+  const L=leads, n=L.length;
+  let called=0,rdv=0,honore=0,todo=0,rappel=0;
+  L.forEach(l=>{
+    if(l.appele)called++;
+    if(l.res==='rdv_pris'||l.res==='rdv_honore')rdv++;
+    if(l.res==='rdv_honore')honore++;
+    if(!l.res&&!l.appele)todo++;
+    if(l.res==='a_rappeler')rappel++;
+  });
+  const tauxC = n? Math.round(called/n*100):0;
+  const tauxR = n? Math.round(rdv/n*100):0;
+  const cards=[
+    {n:n,l:'Prospects au total'},
+    {n:todo,l:'🆕 À traiter'},
+    {n:called,l:'📞 Appelés ('+tauxC+'%)'},
+    {n:rdv,l:'✅ RDV pris ('+tauxR+'%)',cls:'green'},
+    {n:honore,l:'🏆 RDV honorés',cls:'green'},
+    {n:rappel,l:'🔁 À rappeler',cls:'accent'}
+  ];
+  document.getElementById('stats').innerHTML=cards.map(c=>
+    `<div class="stat ${c.cls||''}"><div class="n">${c.n}</div><div class="l">${c.l}</div></div>`).join('');
+}
+function fmtDate(d){
+  if(!d) return '—';
+  const t=Date.parse(String(d).replace(' ','T'));
+  if(isNaN(t)) return d;
+  return new Date(t).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+}
+function esc(s){return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function cleanPhone(p){ return (p||'').replace(/[^\d+]/g,''); }
+function telLink(p){ if(!p) return '—'; return `<a class="tel" href="tel:${cleanPhone(p)}">${esc(p)}</a>`; }
+function callBtn(p){
+  if(!p) return `<a class="btncall off">📞 Appeler</a>`;
+  return `<a class="btncall" href="tel:${cleanPhone(p)}">📞 Appeler</a>`;
+}
+
+function matchFilter(l,f){
+  switch(f){
+    case 'all':return true;
+    case 'todo':return !l.res&&!l.appele;
+    case 'notcalled':return !l.appele;
+    case 'called':return !!l.appele;
+    case 'rdv_pris':return l.res==='rdv_pris'||l.res==='rdv_honore';
+    default:return l.res===f;
+  }
+}
+function isEditing(){
+  const a=document.activeElement;
+  return a && a.closest && a.closest('#tbody');
+}
+function renderTable(){
+  const q=norm(document.getElementById('searchInput').value);
+  const f=document.getElementById('filterSelect').value;
+  const tbody=document.getElementById('tbody'); tbody.innerHTML='';
+  let shown=0;
+  leads.forEach(l=>{
+    if(!matchFilter(l,f)) return;
+    if(q){ const hay=norm((l.name||'')+' '+(l.phone||'')+' '+(l.city||'')+' '+(l.email||'')); if(!hay.includes(q)) return; }
+    shown++;
+    const res = l.res || '';
+    const opts=Object.keys(RES).map(k=>`<option value="${k}"${res===k?' selected':''}>${RES[k].label}</option>`).join('');
+    const tr=document.createElement('tr'); tr.dataset.id=l.id;
+    tr.innerHTML=`
+      <td><button class="detailbtn" data-act="detail" title="Détails">＋</button></td>
+      <td style="white-space:nowrap;color:var(--gris)">${esc(fmtDate(l.lead_date))}</td>
+      <td class="nom">${esc(l.name)}</td>
+      <td>${telLink(l.phone)}</td>
+      <td>${callBtn(l.phone)}</td>
+      <td>${esc(l.city)||'—'}</td>
+      <td>${esc(l.gift)||'—'}</td>
+      <td>${l.insur?`<span class="badge ${/oui|yes|assur/i.test(l.insur)?'b-vert':'b-gris'}">${esc(l.insur)}</span>`:'—'}</td>
+      <td style="text-align:center"><input type="checkbox" class="chk" data-act="appele" ${l.appele?'checked':''}></td>
+      <td><select class="res" data-act="res">${opts}</select></td>
+      <td><input type="text" class="note" data-act="note" value="${esc(l.note)}" placeholder="note…"></td>`;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('emptyState').classList.toggle('hidden', shown>0);
+}
+
+/* ---------- Interactions tableau ---------- */
+document.getElementById('tbody').addEventListener('change',e=>{
+  const tr=e.target.closest('tr'); if(!tr)return; const id=tr.dataset.id; const act=e.target.dataset.act;
+  if(act==='appele'){ setStatus(id,{appele:e.target.checked}); }
+  if(act==='res'){ const v=e.target.value; const patch={res:v}; if(v){patch.appele=true;} setStatus(id,patch).then(()=>renderTable()); }
+});
+document.getElementById('tbody').addEventListener('input',e=>{
+  if(e.target.dataset.act==='note'){
+    const tr=e.target.closest('tr'); const id=tr.dataset.id;
+    const l=leads.find(x=>x.id===id); if(l) l.note=e.target.value;
+    clearTimeout(e.target._t);
+    e.target._t=setTimeout(()=>setStatus(id,{note:e.target.value}),500);
+  }
+});
+document.getElementById('tbody').addEventListener('click',e=>{
+  if(e.target.dataset.act!=='detail')return;
+  const tr=e.target.closest('tr'); const id=tr.dataset.id;
+  const next=tr.nextElementSibling;
+  if(next&&next.classList.contains('detail')){ next.remove(); e.target.textContent='＋'; return; }
+  const l=leads.find(x=>x.id===id);
+  const raw = (l && l.raw) ? l.raw : {};
+  const kv=Object.entries(raw).map(([k,v])=>`<div><b>${esc(k)}</b><br>${esc(v)}</div>`).join('') || '<div>Aucune donnée brute.</div>';
+  const dr=document.createElement('tr'); dr.className='detail';
+  dr.innerHTML=`<td colspan="11"><div class="kv">${kv}</div></td>`;
+  tr.after(dr); e.target.textContent='−';
+});
+
+/* ---------- Recherche / filtre ---------- */
+document.getElementById('searchInput').addEventListener('input',renderTable);
+document.getElementById('filterSelect').addEventListener('change',renderTable);
+
+/* ---------- Import UI ---------- */
+const dz=document.getElementById('dropZone'), fi=document.getElementById('fileInput');
+document.getElementById('pickBtn').addEventListener('click',()=>fi.click());
+dz.addEventListener('click',e=>{ if(e.target.id!=='pickBtn') fi.click(); });
+fi.addEventListener('change',e=>handleFile(e.target.files[0]));
+document.getElementById('newImportBtn').addEventListener('click',()=>fi.click());
+;['dragenter','dragover'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add('drag');}));
+;['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove('drag');}));
+dz.addEventListener('drop',e=>{ if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+window.addEventListener('dragover',e=>e.preventDefault());
+window.addEventListener('drop',e=>{ e.preventDefault(); if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+
+/* ---------- Export CSV ---------- */
+document.getElementById('exportBtn').addEventListener('click',()=>{
+  if(!leads.length){alert('Rien à exporter.');return;}
+  const cols=['Date','Nom','Téléphone','Ville','Email','Cadeau','Bris de glace','Campagne','Appelé','Résultat','Notes'];
+  const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+  const lines=[cols.join(';')];
+  leads.forEach(l=>{
+    lines.push([l.lead_date,l.name,l.phone,l.city,l.email,l.gift,l.insur,l.camp,
+      l.appele?'Oui':'Non',RES[l.res||'']?RES[l.res||''].label:'',l.note].map(q).join(';'));
+  });
+  const blob=new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='Suivi-leads-RPB-'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();
+});
+
+/* ---------- Realtime + Init ---------- */
+async function init(){
+  if(!configured){
+    document.getElementById('setupBanner').classList.remove('hidden');
+    setConn(false,'Non configuré');
+    return;
+  }
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  setConn(false,'Connexion…');
+  await fetchAll();
+  setConn(true,'En ligne — synchro temps réel');
+  // Abonnement temps réel : toute modif (autre appareil / nouveau lead Meta) arrive ici
+  sb.channel('leads-rt')
+    .on('postgres_changes',{event:'*',schema:'public',table:'leads'},payload=>{
+      const t=payload.eventType, n=payload.new, o=payload.old;
+      if(t==='INSERT'){ if(!leads.find(x=>x.id===n.id)) leads.unshift(n); }
+      else if(t==='UPDATE'){ const i=leads.findIndex(x=>x.id===n.id); if(i>-1) leads[i]=n; }
+      else if(t==='DELETE'){ leads=leads.filter(x=>x.id!==o.id); }
+      // Évite d'écraser une saisie en cours
+      if(isEditing()){ renderStats(); } else { render(); }
+    })
+    .subscribe();
+}
+init();
+</script>
+</body>
+</html>
