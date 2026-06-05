@@ -351,6 +351,48 @@ function callBtn(p){
   return `<a class="btncall" href="tel:${cleanPhone(p)}">📞 Appeler</a>`;
 }
 
+/* ---------- Dérivation des champs depuis raw (leads Meta via Make) ----------
+   Make n'envoie que id + lead_date + raw. raw = field_data Meta :
+   soit un tableau [{name:"full_name", values:["Jean Dupont"]}, ...],
+   soit un objet {entête: valeur} (import CSV). On gère les deux. */
+function rawEntries(raw){
+  if(!raw) return [];
+  if(typeof raw==='string'){ try{ raw=JSON.parse(raw); }catch(e){ return [['',raw]]; } }
+  if(Array.isArray(raw)){
+    return raw.map(it=>{
+      if(it && typeof it==='object'){
+        const k = it.name ?? it.key ?? it.field ?? it.label ?? '';
+        let v = it.values ?? it.value ?? '';
+        if(Array.isArray(v)) v = v.map(x=> (x && typeof x==='object') ? (x.value ?? JSON.stringify(x)) : x).join(', ');
+        return [String(k), String(v)];
+      }
+      return ['', String(it)];
+    }).filter(([k,v])=>k!=='' || v!=='');
+  }
+  if(typeof raw==='object'){
+    return Object.entries(raw).map(([k,v])=>[String(k), Array.isArray(v)?v.join(', '):String(v==null?'':v)]);
+  }
+  return [['', String(raw)]];
+}
+function pickField(entries, keys){
+  for(const [k,v] of entries){ const nk=norm(k); if(v && keys.some(key=>nk.includes(key))) return v; }
+  return '';
+}
+function derive(l){
+  const e = rawEntries(l && l.raw);
+  const full  = pickField(e,['full_name','nom complet','full name']);
+  const first = pickField(e,['first_name','prenom']);
+  const last  = pickField(e,['last_name','nom de famille']);
+  return {
+    name:  l.name  || full || [first,last].filter(Boolean).join(' ') || '(sans nom)',
+    phone: l.phone || pickField(e,['phone','telephone','tel','mobile','numero']),
+    city:  l.city  || pickField(e,['city','ville','commune','code postal','zip']),
+    email: l.email || pickField(e,['email','e-mail','mail','courriel']),
+    gift:  l.gift  || pickField(e,['cadeau','gift','choisissez','offre']),
+    insur: l.insur || pickField(e,['bris','assur','glace'])
+  };
+}
+
 function matchFilter(l,f){
   switch(f){
     case 'all':return true;
@@ -372,7 +414,8 @@ function renderTable(){
   let shown=0;
   leads.forEach(l=>{
     if(!matchFilter(l,f)) return;
-    if(q){ const hay=norm((l.name||'')+' '+(l.phone||'')+' '+(l.city||'')+' '+(l.email||'')); if(!hay.includes(q)) return; }
+    const d=derive(l);
+    if(q){ const hay=norm((d.name||'')+' '+(d.phone||'')+' '+(d.city||'')+' '+(d.email||'')); if(!hay.includes(q)) return; }
     shown++;
     const res = l.res || '';
     const opts=Object.keys(RES).map(k=>`<option value="${k}"${res===k?' selected':''}>${RES[k].label}</option>`).join('');
@@ -380,12 +423,12 @@ function renderTable(){
     tr.innerHTML=`
       <td><button class="detailbtn" data-act="detail" title="Détails">＋</button></td>
       <td style="white-space:nowrap;color:var(--gris)">${esc(fmtDate(l.lead_date))}</td>
-      <td class="nom">${esc(l.name)}</td>
-      <td>${telLink(l.phone)}</td>
-      <td>${callBtn(l.phone)}</td>
-      <td>${esc(l.city)||'—'}</td>
-      <td>${esc(l.gift)||'—'}</td>
-      <td>${l.insur?`<span class="badge ${/oui|yes|assur/i.test(l.insur)?'b-vert':'b-gris'}">${esc(l.insur)}</span>`:'—'}</td>
+      <td class="nom">${esc(d.name)}</td>
+      <td>${telLink(d.phone)}</td>
+      <td>${callBtn(d.phone)}</td>
+      <td>${esc(d.city)||'—'}</td>
+      <td>${esc(d.gift)||'—'}</td>
+      <td>${d.insur?`<span class="badge ${/oui|yes|assur/i.test(d.insur)?'b-vert':'b-gris'}">${esc(d.insur)}</span>`:'—'}</td>
       <td style="text-align:center"><input type="checkbox" class="chk" data-act="appele" ${l.appele?'checked':''}></td>
       <td><select class="res" data-act="res">${opts}</select></td>
       <td><input type="text" class="note" data-act="note" value="${esc(l.note)}" placeholder="note…"></td>`;
@@ -414,8 +457,8 @@ document.getElementById('tbody').addEventListener('click',e=>{
   const next=tr.nextElementSibling;
   if(next&&next.classList.contains('detail')){ next.remove(); e.target.textContent='＋'; return; }
   const l=leads.find(x=>x.id===id);
-  const raw = (l && l.raw) ? l.raw : {};
-  const kv=Object.entries(raw).map(([k,v])=>`<div><b>${esc(k)}</b><br>${esc(v)}</div>`).join('') || '<div>Aucune donnée brute.</div>';
+  const entries = rawEntries(l && l.raw);
+  const kv=entries.map(([k,v])=>`<div><b>${esc(k||'—')}</b><br>${esc(v)}</div>`).join('') || '<div>Aucune donnée brute.</div>';
   const dr=document.createElement('tr'); dr.className='detail';
   dr.innerHTML=`<td colspan="11"><div class="kv">${kv}</div></td>`;
   tr.after(dr); e.target.textContent='−';
@@ -444,7 +487,8 @@ document.getElementById('exportBtn').addEventListener('click',()=>{
   const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
   const lines=[cols.join(';')];
   leads.forEach(l=>{
-    lines.push([l.lead_date,l.name,l.phone,l.city,l.email,l.gift,l.insur,l.camp,
+    const d=derive(l);
+    lines.push([l.lead_date,d.name,d.phone,d.city,d.email,d.gift,d.insur,l.camp,
       l.appele?'Oui':'Non',RES[l.res||'']?RES[l.res||''].label:'',l.note].map(q).join(';'));
   });
   const blob=new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
