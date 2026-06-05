@@ -165,7 +165,7 @@
   <div class="toolbar">
     <div class="search">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-      <input type="text" id="searchInput" placeholder="Rechercher un nom, téléphone, ville…" />
+      <input type="text" id="searchInput" placeholder="Rechercher un nom, téléphone, ville, plaque…" />
     </div>
     <select class="filter" id="filterSelect">
       <option value="all">Tous les prospects</option>
@@ -191,6 +191,7 @@
             <th>Téléphone</th>
             <th>Appel</th>
             <th>Ville</th>
+            <th>Plaque / Véhicule</th>
             <th>Cadeau</th>
             <th>Bris de glace</th>
             <th>Appelé</th>
@@ -428,7 +429,8 @@ function derive(l){
     city:  l.city  || pickField(e,['city','ville','commune','code postal','zip']),
     email: l.email || pickField(e,['email','e-mail','mail','courriel']),
     gift:  l.gift  || pickField(e,['cadeau','gift','choisissez','offre']),
-    insur: l.insur || pickField(e,['bris','assur','glace'])
+    insur: l.insur || pickField(e,['bris','assur','glace']),
+    vehicule: pickField(e,['vehicule','vehicle','immatricul','plaque','modele','model','plate'])
   };
 }
 
@@ -454,7 +456,7 @@ function renderTable(){
   leads.forEach(l=>{
     if(!matchFilter(l,f)) return;
     const d=derive(l);
-    if(q){ const hay=norm((d.name||'')+' '+(d.phone||'')+' '+(d.city||'')+' '+(d.email||'')); if(!hay.includes(q)) return; }
+    if(q){ const hay=norm((d.name||'')+' '+(d.phone||'')+' '+(d.city||'')+' '+(d.email||'')+' '+(d.vehicule||'')); if(!hay.includes(q)) return; }
     shown++;
     const res = l.res || '';
     const opts=Object.keys(RES).map(k=>`<option value="${k}"${res===k?' selected':''}>${RES[k].label}</option>`).join('');
@@ -466,6 +468,7 @@ function renderTable(){
       <td>${telLink(d.phone)}</td>
       <td>${callBtn(d.phone)}</td>
       <td>${esc(d.city)||'—'}</td>
+      <td>${d.vehicule?`<span style="font-weight:600;letter-spacing:.3px">${esc(d.vehicule)}</span>`:'—'}</td>
       <td>${esc(d.gift)||'—'}</td>
       <td>${d.insur?`<span class="badge ${/oui|yes|assur/i.test(d.insur)?'b-vert':'b-gris'}">${esc(d.insur)}</span>`:'—'}</td>
       <td style="text-align:center"><input type="checkbox" class="chk" data-act="appele" ${l.appele?'checked':''}></td>
@@ -499,7 +502,7 @@ document.getElementById('tbody').addEventListener('click',e=>{
   const entries = rawEntries(l && l.raw);
   const kv=entries.map(([k,v])=>`<div><b>${esc(k||'—')}</b><br>${esc(v)}</div>`).join('') || '<div>Aucune donnée brute.</div>';
   const dr=document.createElement('tr'); dr.className='detail';
-  dr.innerHTML=`<td colspan="11"><div class="kv">${kv}</div></td>`;
+  dr.innerHTML=`<td colspan="12"><div class="kv">${kv}</div></td>`;
   tr.after(dr); e.target.textContent='−';
 });
 
@@ -522,12 +525,12 @@ window.addEventListener('drop',e=>{ e.preventDefault(); if(e.dataTransfer.files[
 /* ---------- Export CSV ---------- */
 document.getElementById('exportBtn').addEventListener('click',()=>{
   if(!leads.length){alert('Rien à exporter.');return;}
-  const cols=['Date','Nom','Téléphone','Ville','Email','Cadeau','Bris de glace','Campagne','Appelé','Résultat','Notes'];
+  const cols=['Date','Nom','Téléphone','Ville','Plaque / Véhicule','Email','Cadeau','Bris de glace','Campagne','Appelé','Résultat','Notes'];
   const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
   const lines=[cols.join(';')];
   leads.forEach(l=>{
     const d=derive(l);
-    lines.push([l.lead_date,d.name,d.phone,d.city,d.email,d.gift,d.insur,l.camp,
+    lines.push([l.lead_date,d.name,d.phone,d.city,d.vehicule,d.email,d.gift,d.insur,l.camp,
       l.appele?'Oui':'Non',RES[l.res||'']?RES[l.res||''].label:'',l.note].map(q).join(';'));
   });
   const blob=new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
