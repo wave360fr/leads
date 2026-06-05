@@ -86,9 +86,46 @@
   .setup{background:#fff7f7;border:1px solid var(--rouge);border-radius:12px;padding:18px 20px;margin-bottom:18px;font-size:13.5px}
   .setup code{background:#fee2e2;padding:1px 6px;border-radius:5px;font-family:monospace}
   @media(max-width:640px){.wrap{padding:14px}input.note{width:110px}}
+
+  /* ---- Écran de connexion (accès réservé) ---- */
+  .authgate{position:fixed;inset:0;z-index:1000;background:linear-gradient(135deg,#1a1d21,#2a2f36);
+    display:flex;align-items:center;justify-content:center;padding:20px}
+  .authcard{background:#fff;border-radius:16px;padding:30px 28px;width:100%;max-width:380px;
+    box-shadow:0 20px 60px rgba(0,0,0,.45)}
+  .authcard .logo{margin:0 auto 14px}
+  .authcard h2{font-size:19px;text-align:center;margin-bottom:4px;letter-spacing:-.3px}
+  .authcard p.sub{font-size:13px;color:var(--gris);text-align:center;margin-bottom:18px}
+  .authcard label{display:block;font-size:12.5px;font-weight:700;color:#374151;margin:12px 0 5px}
+  .authcard input{width:100%;padding:11px 12px;border:1px solid var(--bord);border-radius:9px;font-size:14px}
+  .authcard input:focus{outline:none;border-color:var(--rouge)}
+  .authcard .btn{width:100%;justify-content:center;margin-top:18px}
+  .authcard .btn.ghost{margin-top:9px}
+  .authmsg{font-size:12.5px;margin-top:13px;padding:9px 11px;border-radius:8px;display:none;line-height:1.4}
+  .authmsg.err{display:block;background:var(--rouge-clair);color:var(--rouge-fonce)}
+  .authmsg.ok{display:block;background:var(--vert-clair);color:var(--vert)}
+  body.locked{overflow:hidden}
+  .userbox{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--gris);
+    background:#fff;border:1px solid var(--bord);padding:6px 11px;border-radius:999px}
 </style>
 </head>
-<body>
+<body class="locked">
+
+<!-- Écran de connexion (accès réservé au propriétaire) -->
+<div id="authGate" class="authgate">
+  <div class="authcard">
+    <div class="logo">RPB</div>
+    <h2>Suivi des prospects</h2>
+    <p class="sub">Rapid Pare-Brise Guyancourt — accès réservé</p>
+    <label for="authEmail">Adresse e-mail</label>
+    <input type="email" id="authEmail" autocomplete="username" placeholder="vous@exemple.fr" />
+    <label for="authPass">Mot de passe</label>
+    <input type="password" id="authPass" autocomplete="current-password" placeholder="••••••••" />
+    <button class="btn" id="loginBtn">Se connecter</button>
+    <button class="btn ghost" id="signupBtn">Créer mon compte (1re fois)</button>
+    <div class="authmsg" id="authMsg"></div>
+  </div>
+</div>
+
 <header class="top">
   <div class="brand">
     <div class="logo">RPB</div>
@@ -99,8 +136,10 @@
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
     <span class="pill" id="connInfo"><span class="dot"></span><span id="connTxt">Connexion…</span></span>
+    <span class="userbox hidden" id="userBox">👤 <span id="userEmail"></span></span>
     <button class="btn ghost sm" id="exportBtn">⬇️ Exporter CSV</button>
     <button class="btn ghost sm" id="newImportBtn">📤 Importer un CSV</button>
+    <button class="btn ghost sm hidden" id="logoutBtn">🔒 Déconnexion</button>
   </div>
 </header>
 
@@ -498,19 +537,31 @@ document.getElementById('exportBtn').addEventListener('click',()=>{
   a.click();
 });
 
-/* ---------- Realtime + Init ---------- */
-async function init(){
-  if(!configured){
-    document.getElementById('setupBanner').classList.remove('hidden');
-    setConn(false,'Non configuré');
-    return;
-  }
-  sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+/* ---------- Authentification + Realtime + Init ---------- */
+let rtSub=null, started=false;
+function gateMsg(txt,type){
+  const m=document.getElementById('authMsg');
+  m.className='authmsg '+(type||'');
+  m.textContent=txt||'';
+}
+function showGate(){
+  document.getElementById('authGate').classList.remove('hidden');
+  document.body.classList.add('locked');
+  document.getElementById('logoutBtn').classList.add('hidden');
+  document.getElementById('userBox').classList.add('hidden');
+}
+async function startDashboard(session){
+  if(started) return; started=true;
+  document.getElementById('authGate').classList.add('hidden');
+  document.body.classList.remove('locked');
+  document.getElementById('logoutBtn').classList.remove('hidden');
+  document.getElementById('userBox').classList.remove('hidden');
+  document.getElementById('userEmail').textContent = (session && session.user && session.user.email) || '';
   setConn(false,'Connexion…');
   await fetchAll();
   setConn(true,'En ligne — synchro temps réel');
   // Abonnement temps réel : toute modif (autre appareil / nouveau lead Meta) arrive ici
-  sb.channel('leads-rt')
+  rtSub = sb.channel('leads-rt')
     .on('postgres_changes',{event:'*',schema:'public',table:'leads'},payload=>{
       const t=payload.eventType, n=payload.new, o=payload.old;
       if(t==='INSERT'){ if(!leads.find(x=>x.id===n.id)) leads.unshift(n); }
@@ -520,6 +571,51 @@ async function init(){
       if(isEditing()){ renderStats(); } else { render(); }
     })
     .subscribe();
+}
+function stopDashboard(){
+  started=false;
+  if(rtSub){ try{ sb.removeChannel(rtSub); }catch(e){} rtSub=null; }
+  leads=[]; renderStats();
+  showGate();
+}
+async function doLogin(){
+  const email=document.getElementById('authEmail').value.trim();
+  const pass=document.getElementById('authPass').value;
+  if(!email||!pass){ gateMsg('Renseigne ton e-mail et ton mot de passe.','err'); return; }
+  gateMsg('Connexion en cours…','ok');
+  const {error}=await sb.auth.signInWithPassword({email,password:pass});
+  if(error) gateMsg('Connexion impossible : '+error.message,'err');
+}
+async function doSignup(){
+  const email=document.getElementById('authEmail').value.trim();
+  const pass=document.getElementById('authPass').value;
+  if(!email||!pass){ gateMsg('Choisis ton e-mail et ton mot de passe.','err'); return; }
+  if(pass.length<8){ gateMsg('Mot de passe trop court (8 caractères minimum).','err'); return; }
+  gateMsg('Création du compte…','ok');
+  const {data,error}=await sb.auth.signUp({email,password:pass});
+  if(error){ gateMsg('Création impossible : '+error.message,'err'); return; }
+  if(data && data.session) gateMsg('Compte créé, connexion…','ok');
+  else gateMsg('Compte créé. Vérifie ta boîte mail pour confirmer l\'adresse, puis clique sur « Se connecter ».','ok');
+}
+async function init(){
+  if(!configured){
+    document.getElementById('setupBanner').classList.remove('hidden');
+    document.getElementById('authGate').classList.add('hidden');
+    document.body.classList.remove('locked');
+    setConn(false,'Non configuré');
+    return;
+  }
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  document.getElementById('loginBtn').addEventListener('click',doLogin);
+  document.getElementById('signupBtn').addEventListener('click',doSignup);
+  document.getElementById('logoutBtn').addEventListener('click',()=>sb.auth.signOut());
+  document.getElementById('authPass').addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
+  // Réagit à l'état de connexion (restaure la session sur tous les appareils)
+  sb.auth.onAuthStateChange((event,session)=>{
+    if(session) startDashboard(session);
+    else if(started) stopDashboard();
+    else showGate();
+  });
 }
 init();
 </script>
