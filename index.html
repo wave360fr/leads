@@ -550,16 +550,9 @@ function showGate(){
   document.getElementById('logoutBtn').classList.add('hidden');
   document.getElementById('userBox').classList.add('hidden');
 }
-async function startDashboard(session){
-  if(started) return; started=true;
-  document.getElementById('authGate').classList.add('hidden');
-  document.body.classList.remove('locked');
-  document.getElementById('logoutBtn').classList.remove('hidden');
-  document.getElementById('userBox').classList.remove('hidden');
-  document.getElementById('userEmail').textContent = (session && session.user && session.user.email) || '';
-  setConn(false,'Connexion…');
-  await fetchAll();
-  setConn(true,'En ligne — synchro temps réel');
+let pollTimer=null;
+function subscribeRealtime(){
+  if(rtSub){ try{ sb.removeChannel(rtSub); }catch(e){} rtSub=null; }
   // Abonnement temps réel : toute modif (autre appareil / nouveau lead Meta) arrive ici
   rtSub = sb.channel('leads-rt')
     .on('postgres_changes',{event:'*',schema:'public',table:'leads'},payload=>{
@@ -570,10 +563,44 @@ async function startDashboard(session){
       // Évite d'écraser une saisie en cours
       if(isEditing()){ renderStats(); } else { render(); }
     })
-    .subscribe();
+    .subscribe((status)=>{
+      if(status==='SUBSCRIBED'){ setConn(true,'En ligne — synchro temps réel'); }
+      else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED'){
+        setConn(false,'Reconnexion…');
+        if(rtSub){ try{ sb.removeChannel(rtSub); }catch(e){} rtSub=null; }
+        setTimeout(()=>{ if(started && !rtSub) subscribeRealtime(); }, 3000);
+      }
+    });
+}
+// Re-synchro douce (sans écraser une saisie en cours) — filet de sécurité si le temps réel saute
+async function softRefresh(){
+  if(!started || isEditing()) return;
+  try{ await fetchAll(); if(!isEditing()) render(); }catch(e){}
+}
+// Réveil de l'appareil / retour au premier plan / réseau revenu : on resynchronise
+async function wakeSync(){
+  if(!started) return;
+  if(!rtSub) subscribeRealtime();
+  await softRefresh();
+}
+async function startDashboard(session){
+  if(started) return; started=true;
+  document.getElementById('authGate').classList.add('hidden');
+  document.body.classList.remove('locked');
+  document.getElementById('logoutBtn').classList.remove('hidden');
+  document.getElementById('userBox').classList.remove('hidden');
+  document.getElementById('userEmail').textContent = (session && session.user && session.user.email) || '';
+  setConn(false,'Connexion…');
+  await fetchAll();
+  setConn(true,'En ligne — synchro temps réel');
+  subscribeRealtime();
+  // Filet de sécurité : rafraîchissement auto toutes les 45 s (au cas où le temps réel saute)
+  if(pollTimer) clearInterval(pollTimer);
+  pollTimer=setInterval(softRefresh,45000);
 }
 function stopDashboard(){
   started=false;
+  if(pollTimer){ clearInterval(pollTimer); pollTimer=null; }
   if(rtSub){ try{ sb.removeChannel(rtSub); }catch(e){} rtSub=null; }
   leads=[]; renderStats();
   showGate();
@@ -616,6 +643,10 @@ async function init(){
     else if(started) stopDashboard();
     else showGate();
   });
+  // Filets de sécurité : resynchro au réveil de l'appareil / retour d'onglet / réseau revenu
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden) wakeSync(); });
+  window.addEventListener('focus',()=>wakeSync());
+  window.addEventListener('online',()=>wakeSync());
 }
 init();
 </script>
